@@ -185,6 +185,58 @@ Similarly, you can deploy or cleanup specific Agent Substrate components using t
 ./hack/install-ate.sh --delete-all
 ```
 
+### Minikube Quickstart (Development)
+
+The Minikube installer reuses the Kind overlay for local RustFS snapshot
+storage. It builds and pushes images to `KO_DOCKER_REPO`, which must be
+reachable from the shell and Minikube nodes. A loopback-only registry on the
+host will not work. For a private registry, configure image pull credentials
+on the cluster before installing.
+
+Run the helper from a Bash environment with Minikube, kubectl, Podman, and the
+profile kubeconfig available. It creates a separate `minikube-ate` profile by
+default and enables the certificate APIs used by the control plane:
+
+For Windows-hosted Minikube, Git Bash can be used when Minikube, Podman,
+kubectl, Go, and the profile kubeconfig are available on its `PATH`.
+
+```bash
+hack/create-minikube-cluster.sh
+```
+
+The helper never deletes or reuses an existing profile. Set `MINIKUBE_PROFILE`
+to choose another name. Choose a registry reachable by the cluster and deploy
+the system plus the counter demo:
+
+```bash
+export KO_DOCKER_REPO=ghcr.io/OWNER/substrate-dev
+MINIKUBE_PROFILE=minikube-ate hack/install-ate-minikube.sh --deploy-ate-system --deploy-demo-counter
+```
+
+The default Minikube context is the profile name. Set `MINIKUBE_PROFILE` to
+target another profile, or `KUBECTL_CONTEXT` to override its kubeconfig context.
+The cluster must expose the `ClusterTrustBundle`, `ClusterTrustBundleProjection`,
+and `PodCertificateRequest` Kubernetes APIs required by the control plane.
+
+Create an actor and reach it through the local router:
+
+```bash
+go install ./cmd/kubectl-ate
+kubectl ate create actor my-counter-1 -a ate-demo-counter --template counter
+kubectl port-forward -n ate-system svc/atenet-router 8000:80
+```
+
+In another terminal:
+
+```bash
+curl -X POST -H "ate-target-actor: ate-demo-counter/my-counter-1" \
+   -i http://localhost:8000/
+```
+
+This Minikube path is for development; the supported, self-contained local
+quickstart remains Kind. The counter demo uses gVisor workers; microVM demos
+additionally require KVM access inside the Minikube node.
+
 #### Tearing down resources (GCP)
 
 If you need to delete the resources created by the setup script, you can use the provided script `hack/teardown.sh`. This script will delete resources in the reverse order of creation and handles partial failures gracefully.

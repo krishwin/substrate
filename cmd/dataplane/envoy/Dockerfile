@@ -18,9 +18,12 @@ FROM rust:bookworm@sha256:93ce27a88655056a51dbdd8f5f2d7ddc071c7b0070fb288a37b5a2
 WORKDIR /usr/src/dynamic-modules/egress-policy
 
 # Install build dependencies required by bindgen for generating Envoy ABI bindings
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN --mount=type=secret,id=ate-build-ca,target=/usr/local/share/ca-certificates/ate-build-ca.crt,required=false \
+    apt-get update && apt-get install -y --no-install-recommends \
     clang \
     libclang-dev \
+    ca-certificates \
+    && update-ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy rust module source code
